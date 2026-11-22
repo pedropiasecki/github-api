@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../models/favorito_model.dart';
+import '../../service/auth_service.dart';
 import '../../service/github_service.dart';
+import '../../service/sync_service.dart';
+import '../favorito_form_page.dart';
 
 class BuscaRepositorios extends StatefulWidget {
     const BuscaRepositorios({super.key});
@@ -11,6 +15,52 @@ class BuscaRepositorios extends StatefulWidget {
 class _BuscaRepositoriosState extends State<BuscaRepositorios> {
     Future<Map<String, dynamic>>? resultado;
     final apiService = GithubService();
+    final syncService = SyncService();
+    final authService = AuthService();
+
+    // Favoritos do usuário: { idDoRepositorio: favorito }
+    Map<String, Favorito> favoritos = {};
+
+    @override
+    void initState() {
+        super.initState();
+        carregarFavoritos();
+    }
+
+    Future<void> carregarFavoritos() async {
+        final lista = await syncService.listarFavoritos(authService.usuario!.uid);
+        if (!mounted) return;
+        setState(() {
+            favoritos = {for (final favorito in lista) favorito.remoteId: favorito};
+        });
+    }
+
+    // Estrela vazia: abre o formulário para favoritar.
+    // Estrela cheia: remove dos favoritos.
+    Future<void> alternarFavorito(Map<String, dynamic> repo) async {
+        final existente = favoritos[repo["id"].toString()];
+        if (existente != null) {
+            await syncService.excluirFavorito(existente);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Removido dos favoritos.')),
+            );
+        } else {
+            await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => FavoritoFormPage(
+                        novo: true,
+                        favorito: Favorito.fromGithub(
+                            repo,
+                            authService.usuario!.uid,
+                        ),
+                    ),
+                ),
+            );
+        }
+        carregarFavoritos();
+    }
 
     @override
     Widget build(BuildContext context) {
@@ -100,10 +150,27 @@ class _BuscaRepositoriosState extends State<BuscaRepositorios> {
                 dados += "Linguagem: ${repo["language"] ?? ""}\n";
                 dados += "Estrelas: ${repo["stargazers_count"] ?? 0}\n\n";
 
-                return Text(
-                    dados,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(color: Colors.white, fontSize: 18),
+                return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                        Expanded(
+                            child: Text(
+                                dados,
+                                textAlign: TextAlign.left,
+                                style: TextStyle(color: Colors.white, fontSize: 18),
+                            ),
+                        ),
+                        IconButton(
+                            icon: Icon(
+                                favoritos.containsKey(repo["id"].toString())
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: Colors.amber,
+                            ),
+                            tooltip: 'Favoritar',
+                            onPressed: () => alternarFavorito(repo),
+                        ),
+                    ],
                 );
             }).toList(),
         );

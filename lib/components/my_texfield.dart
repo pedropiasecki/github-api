@@ -7,11 +7,19 @@ class MyTextField extends StatefulWidget {
         required this.hintText,
         required this.icon,
         this.isPassword = false,
+        this.maxLines = 1,
+        this.maxLength,
+        this.keyboardType,
+        this.textCapitalization = TextCapitalization.none,
     });
     final TextEditingController controller;
     final String hintText;
     final IconData icon;
     final bool isPassword;
+    final int maxLines;
+    final int? maxLength;
+    final TextInputType? keyboardType;
+    final TextCapitalization textCapitalization;
     @override
     State<MyTextField> createState() => _MyTextFieldState();
 }
@@ -25,6 +33,10 @@ class _MyTextFieldState extends State<MyTextField> {
         child: TextField(
             controller: widget.controller,
             obscureText: widget.isPassword && hide,
+            maxLines: widget.isPassword ? 1 : widget.maxLines,
+            maxLength: widget.maxLength,
+            keyboardType: widget.keyboardType,
+            textCapitalization: widget.textCapitalization,
             decoration: InputDecoration(
             prefixIcon: Icon(widget.icon),
             suffixIcon: widget.isPassword

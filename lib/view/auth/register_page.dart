@@ -2,6 +2,7 @@ import 'package:apk_auth/components/my_texfield.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../components/my_button.dart';
+import '../../service/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
     const RegisterPage({super.key});
@@ -11,12 +12,15 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+    final nameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
+    final authService = AuthService();
 
     @override
     void dispose() {
+        nameController.dispose();
         emailController.dispose();
         passwordController.dispose();
         confirmController.dispose();
@@ -31,6 +35,16 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     Future<void> register() async {
+        final name = nameController.text.trim();
+
+        if (name.isEmpty ||
+            emailController.text.trim().isEmpty ||
+            passwordController.text.isEmpty ||
+            confirmController.text.isEmpty) {
+            showAlert('Preencha todos os campos.');
+            return;
+        }
+
         if (passwordController.text != confirmController.text) {
             showAlert('Senhas não conferem!');
             return;
@@ -45,9 +59,10 @@ class _RegisterPageState extends State<RegisterPage> {
         );
 
         try {
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                email: emailController.text.trim(),
-                password: passwordController.text,
+            await authService.cadastrar(
+                name,
+                emailController.text.trim(),
+                passwordController.text,
             );
 
             if (!mounted) return;
@@ -59,6 +74,8 @@ class _RegisterPageState extends State<RegisterPage> {
             showAlert(switch (e.code) {
                 'email-already-in-use' => 'Já existe um usuário com esse email!',
                 'weak-password' => 'Escolha uma senha mais forte.',
+                'invalid-email' => 'Email inválido.',
+                'network-request-failed' => 'Sem conexão com a internet.',
                 _ => 'Não foi possível cadastrar. Tente novamente.',
             });
         }
@@ -76,9 +93,18 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Column(
                         children: [
                             MyTextField(
+                                controller: nameController,
+                                hintText: 'Nome completo',
+                                icon: Icons.person_outline,
+                                keyboardType: TextInputType.name,
+                                textCapitalization: TextCapitalization.words,
+                            ),
+                            const SizedBox(height: 15),
+                            MyTextField(
                                 controller: emailController,
                                 hintText: 'Email',
                                 icon: Icons.email_outlined,
+                                keyboardType: TextInputType.emailAddress,
                             ),
                             const SizedBox(height: 15),
                             MyTextField(
